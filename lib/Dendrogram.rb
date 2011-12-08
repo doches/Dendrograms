@@ -194,14 +194,13 @@ class Dendrogram
     
     # Mutate tree
     mutation = mutate.mutate!
-    child = mutation[:child]
     
     old_likelihood = @likelihood
-    self.update_likelihood(mutate, child)
+    self.update_likelihood([mutate, mutate.left, mutate.right])
     
     if not (@likelihood > old_likelihood or Math.log(rand) < @likelihood - old_likelihood)
       mutate.mutate!(mutation)
-      self.update_likelihood(mutate, child)
+      self.update_likelihood([mutate, mutate.left, mutate.right])
     end
     @mcmc_steps += 1
     
@@ -213,14 +212,13 @@ class Dendrogram
   end
   
   # Update the likelihood given two modified nodes
-  def update_likelihood(a, b)
+  def update_likelihood(nodes)
     # Compute new likelihood
-    #   Remove old likelihoods from dendrogram
-    @likelihood -= (@likelihoods[a.index] + @likelihoods[b.index])
-    #   Compute new likelihoods
-    [a, b].each { |node| @likelihoods[node.index] = node.likelihood(@graph) }
-    #   Update dendrogram likelihood
-    @likelihood += (@likelihoods[a.index] + @likelihoods[b.index])
+    nodes.each do |node|
+      @likelihood -= @likelihoods[node.index]
+      @likelihoods[node.index] = node.likelihood(@graph)
+      @likelihood += node.likelihood
+    end
   end
   
   def save(tree_file, info_file)
