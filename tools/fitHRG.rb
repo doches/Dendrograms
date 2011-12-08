@@ -1,6 +1,10 @@
+#!/usr/bin/ruby
 Description = "Re-implementation, basically, of Clauset's fitHRG tool. Takes a .pairs file and fits a HRG over the graph\nProduces a .dendro file with the fit HRG and a .info file with information about the run; these are updated as higher-likelihood dendrograms are found."
 Usage = "ruby #{$0} file.pairs"
 Num_Args = 1
+
+require 'lib/Graph'
+require 'lib/Dendrogram'
 
 if ARGV.size != Num_Args
   STDERR.puts Description
@@ -8,9 +12,6 @@ if ARGV.size != Num_Args
   STDERR.puts "Usage: #{Usage}"
   exit(1)
 end
-
-require 'lib/Graph'
-require 'lib/Dendrogram'
 
 pairs_file = ARGV.shift
 dendrogram_file = pairs_file.gsub(/\.pairs$/,"-best.dendro")
@@ -33,6 +34,6 @@ while true
   end
   
   if saved or dendrogram.mcmc_steps % 1000 == 0
-    STDERR.puts [dendrogram.mcmc_steps, dendrogram.likelihood, best_likelihood, best_steps].join("\t")
+#    STDERR.puts [dendrogram.mcmc_steps, dendrogram.likelihood, best_likelihood, best_steps].join("\t")
   end
 end
