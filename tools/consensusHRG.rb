@@ -1,12 +1,19 @@
-# Re-implementation, basically, of Clauset's consensusHRG tool
-#
-# Takes a .dendro file, a .pairs file, and a wordmap; outputs a consensus hierarchy
+Description = "Re-implementation, basically, of Clauset's consensusHRG tool\nTakes a .dendro file, a .pairs file, and a wordmap; outputs a consensus hierarchy"
+Usage = "ruby #{$0} file.dendro file.pairs file.wordmap > file.consensus.dot"
+Num_Args = 3
+
+if ARGV.size != Num_Args
+  STDERR.puts Description
+  STDERR.puts " "
+  STDERR.puts "Usage: #{Usage}"
+  exit(1)
+end
 
 require 'lib/Graph'
 require 'lib/Dendrogram'
 
-graph_file = ARGV.shift
 dendro_file = ARGV.shift
+graph_file = ARGV.shift
 wordmap_file = ARGV.shift
 wordmap = {}
 IO.foreach(wordmap_file) do |line|
@@ -22,6 +29,7 @@ samples = 100
 spread = 100
 clusters = {}
 sample_index = 0
+STDERR.puts ["MCMC STEPS","LIKELIHOOD"].join("\t")
 while sample_index < samples
   spread.times { dendrogram.sample! }
   dendrogram.clusters.each do |cluster|
@@ -29,7 +37,8 @@ while sample_index < samples
     clusters[cluster.join("_")] ||= 0
     clusters[cluster.sort.join("_")] += 1
   end
-  
+  STDERR.puts [dendrogram.mcmc_steps, dendrogram.likelihood].join("\t")
+
   sample_index += 1
 end
 
@@ -83,6 +92,3 @@ end
 puts "graph {"
 print(keep)
 puts "}"
-
-STDERR.puts @levels.inspect
-STDERR.puts @leaves.inspect
