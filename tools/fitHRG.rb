@@ -1,9 +1,13 @@
-# Re-implementation, basically, of Clauset's fitHRG tool
-#
-# Takes a .pairs file and fits a HRG over the graph
-#
-# Produces a .dendro file with the fit HRG and a .info file with information about the run; 
-# these are updated as higher-likelihood dendrograms are found
+Description = "Re-implementation, basically, of Clauset's fitHRG tool. Takes a .pairs file and fits a HRG over the graph\nProduces a .dendro file with the fit HRG and a .info file with information about the run; these are updated as higher-likelihood dendrograms are found."
+Usage = "ruby #{$0} file.pairs"
+Num_Args = 1
+
+if ARGV.size != Num_Args
+  STDERR.puts Description
+  STDERR.puts " "
+  STDERR.puts "Usage: #{Usage}"
+  exit(1)
+end
 
 require 'lib/Graph'
 require 'lib/Dendrogram'
