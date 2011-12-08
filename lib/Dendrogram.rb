@@ -50,10 +50,10 @@ class DendrogramNode
     "\t#{dot.join("\n\t")}"
   end
   
-  def children(force = true)
+  def children(force = false)
     if force or @child_cache.nil?
-      @child_cache = [@left.is_a?(DendrogramNode) ? @left.children(force) : @left, 
-                      @right.is_a?(DendrogramNode) ? @right.children(force) : @right].flatten
+      @child_cache = [@left.is_a?(DendrogramNode) ? @left.children() : @left, 
+                      @right.is_a?(DendrogramNode) ? @right.children() : @right].flatten
     end
     
     return @child_cache
@@ -64,12 +64,13 @@ class DendrogramNode
     right_children = @right.is_a?(DendrogramNode) ? @right.children : [@right]
     
     links = graph.edges_between(left_children, right_children).to_f
-
     max_links = (left_children.size * right_children.size)
-
-    theta = links / max_links
-    l = (theta**links) * (1-theta)**(max_links-links)
-    return l
+    theta = links / max_links.to_f
+    theta = Epsilon if theta <= 0.0
+    theta = 1.0-Epsilon if theta >= 1.0
+#    l = (theta**links) * (1-theta)**(max_links-links)
+    h = -theta*Math.log(theta) - (1-theta)*Math.log(1-theta)
+    return -h * max_links
   end
   
   def mutable?
@@ -127,31 +128,58 @@ end
 class Dendrogram
   attr_reader :graph, :likelihood, :mcmc_steps
   
-  def initialize(graph)
+  def initialize(graph, tree_file=nil)
     @graph = graph
     @nodes = []
     @likelihoods = []
     @likelihood = 0
     @mcmc_steps = 0
     
-    # Incrementally construct a balanced dendrogram
-    remaining = graph.nodes.dup.shuffle
+    if tree_file
+      index_map = {}
+      IO.foreach(tree_file) do |line|
+        if line =~ /^(\d+)\t(\d+) \(([D|G])\)\t(\d+) \(([D|G])\)/
+          index, left, ltype, right, rtype = $1.to_i, $2.to_i, $3, $4.to_i, $5
+          
+          node = DendrogramNode.new(left, right)
+          node.index = index
+          @nodes.push node
+          index_map[node.index] = node
+          
+          node.left = [left] if ltype == "D"
+          node.right = [right] if rtype == "D"
+        end
+      end
+      # Update mappings
+      @nodes.each do |node|
+        node.left = index_map[node.left[0]] if node.left.is_a?(Array)
+        node.right = index_map[node.right[0]] if node.right.is_a?(Array)
+        node.index = @nodes.index(node)
+      end
+      # Find root
+      @root = @nodes.sort { |b,a| a.children.size <=> b.children.size }[0]
+    else
+      # Incrementally construct a balanced dendrogram
+      remaining = graph.nodes.dup.shuffle
     
-    while remaining.size > 1
-      a = remaining.pop
-      b = remaining.shift
+      while remaining.size > 1
+        a = remaining.pop
+        b = remaining.shift
       
-      node = DendrogramNode.new(a,b)
-      @nodes.push node
-      remaining.push(node)
-      remaining.shuffle!
+        node = DendrogramNode.new(a,b)
+        @nodes.push node
+        remaining.push(node)
+        remaining.shuffle!
+      end
+    
+      # Hold on to the last remaining node; it's the root
+      @root = remaining.shift
     end
     
-    # Hold on to the last remaining node; it's the root
-    @root = remaining.shift
+    # Initialise likelihoods
     @nodes.each_with_index { |node, index| @likelihoods[index] = node.likelihood(@graph) }
-    
-    @likelihood = @likelihoods.inject(1) { |s,x| s *= x }
+    # Compute starting likelihood
+    @likelihood = @likelihoods.inject(0) { |s,x| s += x }
   end
   
   def sample!
@@ -171,8 +199,7 @@ class Dendrogram
     old_likelihood = @likelihood
     self.update_likelihood(mutate, child)
     
-    if not (@likelihood > old_likelihood or rand < @likelihood/old_likelihood)
-      #Math.log(rand) < @likelihood - old_likelihood
+    if not (@likelihood > old_likelihood or Math.log(rand) < @likelihood - old_likelihood)
       mutate.mutate!(mutation)
       self.update_likelihood(mutate, child)
     end
@@ -181,15 +208,19 @@ class Dendrogram
     return @likelihood
   end
   
+  def clusters
+    @nodes.map { |node| node.children }
+  end
+  
   # Update the likelihood given two modified nodes
   def update_likelihood(a, b)
     # Compute new likelihood
     #   Remove old likelihoods from dendrogram
-    @likelihood /= (@likelihoods[a.index] * @likelihoods[b.index])
+    @likelihood -= (@likelihoods[a.index] + @likelihoods[b.index])
     #   Compute new likelihoods
     [a, b].each { |node| @likelihoods[node.index] = node.likelihood(@graph) }
     #   Update dendrogram likelihood
-    @likelihood *= (@likelihoods[a.index] * @likelihoods[b.index])
+    @likelihood += (@likelihoods[a.index] + @likelihoods[b.index])
   end
   
   def save(tree_file, info_file)

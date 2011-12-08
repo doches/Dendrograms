@@ -30,6 +30,7 @@ def process(file)
 			@wordmap.each_pair { |index,word| txt.gsub!("\"#{index}\"","\"#{word}\"") if not word.nil?; progress.inc }
 			progress.finish
 			return txt
+=begin			
 		when "matrix"
 			STDERR.puts "#{file} (MATRIX)"
 			progress = ProgressBar.new("Applying",@wordmap.size)
@@ -49,6 +50,7 @@ def process(file)
 			@wordmap.each_pair { |index,word| txt.gsub!(/\t#{index}\t/,"\t#{word}\t") if not word.nil?; progress.inc }
 			progress.finish
 			return txt
+=end
 		else
 			STDERR.puts "Unrecognised file extension \"#{ext}\"" if @debug
 			return nil
