@@ -1,6 +1,10 @@
+#!/usr/bin/ruby
 Description = "Re-implementation, basically, of Clauset's consensusHRG tool\nTakes a .dendro file, a .pairs file, and a wordmap; outputs a consensus hierarchy"
 Usage = "ruby #{$0} file.dendro file.pairs file.wordmap > file.consensus.dot"
 Num_Args = 3
+
+require 'lib/Graph'
+require 'lib/Dendrogram'
 
 if ARGV.size != Num_Args
   STDERR.puts Description
@@ -8,9 +12,6 @@ if ARGV.size != Num_Args
   STDERR.puts "Usage: #{Usage}"
   exit(1)
 end
-
-require 'lib/Graph'
-require 'lib/Dendrogram'
 
 dendro_file = ARGV.shift
 graph_file = ARGV.shift

@@ -160,7 +160,7 @@ class Dendrogram
       @root = @nodes.sort { |b,a| a.children.size <=> b.children.size }[0]
     else
       # Incrementally construct a balanced dendrogram
-      remaining = graph.nodes.dup.shuffle
+      remaining = graph.nodes.dup.sort_by { rand }
     
       while remaining.size > 1
         a = remaining.pop
@@ -169,7 +169,7 @@ class Dendrogram
         node = DendrogramNode.new(a,b)
         @nodes.push node
         remaining.push(node)
-        remaining.shuffle!
+        remaining = remaining.sort_by { rand }
       end
     
       # Hold on to the last remaining node; it's the root
