@@ -5,6 +5,10 @@ Num_Args = 3
 
 require 'lib/Graph'
 require 'lib/Dendrogram'
+require 'lib/Consensus'
+require 'lib/cli'
+
+verbose = check_flag("-v","--verbose")
 
 if ARGV.size != Num_Args
   STDERR.puts Description
@@ -16,80 +20,55 @@ end
 dendro_file = ARGV.shift
 graph_file = ARGV.shift
 wordmap_file = ARGV.shift
-wordmap = {}
+@wordmap = {}
 IO.foreach(wordmap_file) do |line|
   word,index = *(line.strip.split(/\s+/))
-  wordmap[index] = word
+  @wordmap[index] = word
 end
 tree_file = dendro_file.gsub(".dendro",".ctree")
 
 graph = Graph.new(graph_file)
 dendrogram = Dendrogram.new(graph, dendro_file)
 
-samples = 100
+samples = 10
 spread = 100
 clusters = {}
 sample_index = 0
-STDERR.puts ["MCMC STEPS","LIKELIHOOD"].join("\t")
+STDERR.puts ["MCMC STEPS","LIKELIHOOD","TIME"].join("\t") if verbose
+start = Time.now.to_i
 while sample_index < samples
   spread.times { dendrogram.sample! }
-  dendrogram.clusters.each do |cluster|
-    cluster = cluster.reject { |x| x.nil? }.sort
-    clusters[cluster.join("_")] ||= 0
-    clusters[cluster.sort.join("_")] += 1
+  dclusters = dendrogram.clusters.map { |cluster| cluster.reject { |x| x.nil? }.sort.join("_") }.uniq
+  dclusters.each do |cluster|
+    clusters[cluster] ||= 0
+    clusters[cluster] += 1
   end
-  STDERR.puts [dendrogram.mcmc_steps, dendrogram.likelihood].join("\t")
+  STDERR.puts [dendrogram.mcmc_steps, dendrogram.likelihood,"#{Time.now.to_i-start}s"].join("\t") if verbose
 
   sample_index += 1
 end
 
-keep = clusters.map { |k,v| [k,v] }.reject { |pair| pair[1] < samples/2 }.map { |pair| pair[0].split("_").map { |x| wordmap[x] } }.sort { |b,a| a.size <=> b.size }
+clusters.reject! { |k,v| v <= samples/2.0 }
+#clusters.map { |k,v| [k,v] }.sort { |a,b| a[1] <=> b[1] }.each { |k,v| STDERR.puts "#{v}:\t#{k.gsub('_',", ")}" }
 
-while keep.size > 1
-  child = nil
-  keep.each do |a|
-    (keep-a).each do |b|
-      if a!=b and (a&b).size == a.size
-        # B includes a
-        child = [a,b]
-      end
-    end
-  end
-  if child.nil?
-    break
-  end
-  keep = keep-child
-  child[1] = child[1]-child[0]
-  child[1].push child[0]
-  keep.push child[1]
+keep = clusters.map { |pair| pair[0].split("_").map { |x| x.to_i } }.sort { |b,a| a.size <=> b.size }
+keep.unshift keep.flatten.uniq
+keep.uniq!
+
+# keep.each do |x|
+#   STDERR.puts "  #{x.map { |y| @wordmap[y.to_s] }.inspect}"
+# end
+
+hnodes = [ConsensusNode.new(keep.shift)]
+while keep.size > 0
+  STDERR.puts keep.size
+  cluster = keep.shift
+  lca = hnodes.reject { |x| not x.contains(cluster) }.sort { |a,b| a.size <=> b.size }[0]
+  new_node = ConsensusNode.new(cluster)
+  lca.add_child(new_node)
+  hnodes.push new_node
 end
 
-@levels = {}
-def node(cluster)
-  if @levels[cluster].nil?
-    @levels[cluster] = @levels.size
-    puts "\tINTERNAL#{@levels[cluster]} [shape=point, label=\"\"];"
-  end
-  return @levels[cluster]
-end
-@leaves = {}
-def leaf(cluster)
-  if @leaves[cluster].nil?
-    @leaves[cluster] = @leaves.size
-    puts "\tLEAF#{@leaves[cluster]} [shape=none, label=\"#{cluster}\"];"
-  end
-  return @leaves[cluster]
-end
-def print(list)
-  list.each do |cluster|
-    if cluster.is_a?(Array)
-      puts "\tINTERNAL#{node(list)} -- INTERNAL#{node(cluster)};"
-      print(cluster)
-    else
-      puts "\tINTERNAL#{node(list)} -- LEAF#{leaf(cluster)};"
-    end
-  end
-end
 puts "graph {"
-print(keep)
+hnodes[0].to_dot(@wordmap)
 puts "}"

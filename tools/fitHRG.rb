@@ -5,6 +5,10 @@ Num_Args = 1
 
 require 'lib/Graph'
 require 'lib/Dendrogram'
+require 'lib/cli'
+
+verbose = check_flag("-v","--verbose")
+verbose_saved = check_flag("-s", "--saved")
 
 if ARGV.size != Num_Args
   STDERR.puts Description
@@ -22,7 +26,8 @@ dendrogram = Dendrogram.new(graph)
 
 best_likelihood = dendrogram.sample!
 best_steps = 0
-STDERR.puts ["MCMC STEPS","LIKELIHOOD","BEST LIKELIHOOD","AT MCMC"].join("\t")
+start = Time.now.to_i
+STDERR.puts ["MCMC","LIKELIHOOD","BEST LIKEL.","AT MCMC","TIME"].join("\t") if verbose
 while true
   saved = false
   likelihood = dendrogram.sample!
@@ -33,7 +38,7 @@ while true
     saved = true
   end
   
-  if saved or dendrogram.mcmc_steps % 1000 == 0
-#    STDERR.puts [dendrogram.mcmc_steps, dendrogram.likelihood, best_likelihood, best_steps].join("\t")
+  if (saved and verbose_saved) or dendrogram.mcmc_steps % 1000 == 0
+    STDERR.puts [dendrogram.mcmc_steps, dendrogram.likelihood, best_likelihood, best_steps, "#{Time.now.to_i-start}s"].join("\t") if verbose
   end
 end

@@ -215,9 +215,11 @@ class Dendrogram
   def update_likelihood(nodes)
     # Compute new likelihood
     nodes.each do |node|
-      @likelihood -= @likelihoods[node.index]
-      @likelihoods[node.index] = node.likelihood(@graph)
-      @likelihood += node.likelihood
+      if node.is_a?(DendrogramNode)
+        @likelihood -= @likelihoods[node.index]
+        @likelihoods[node.index] = node.likelihood(@graph)
+        @likelihood += @likelihoods[node.index]
+      end
     end
   end
   
