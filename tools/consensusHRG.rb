@@ -9,6 +9,8 @@ require 'lib/Consensus'
 require 'lib/cli'
 
 verbose = check_flag("-v","--verbose")
+samples = check_opt("-s","--samples","300").to_i
+spread = check_opt("-S","--spread","100").to_i
 
 if ARGV.size != Num_Args
   STDERR.puts Description
@@ -30,8 +32,6 @@ tree_file = dendro_file.gsub(".dendro",".ctree")
 graph = Graph.new(graph_file)
 dendrogram = Dendrogram.new(graph, dendro_file)
 
-samples = 10
-spread = 100
 clusters = {}
 sample_index = 0
 STDERR.puts ["MCMC STEPS","LIKELIHOOD","TIME"].join("\t") if verbose

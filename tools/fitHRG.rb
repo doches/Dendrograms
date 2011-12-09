@@ -1,6 +1,6 @@
 #!/usr/bin/ruby
-Description = "Re-implementation, basically, of Clauset's fitHRG tool. Takes a .pairs file and fits a HRG over the graph\nProduces a .dendro file with the fit HRG and a .info file with information about the run; these are updated as higher-likelihood dendrograms are found."
-Usage = "ruby #{$0} file.pairs"
+Description = "Re-implementation, basically, of Clauset's fitHRG tool. Takes a .pairs file and fits a HRG over the graph\nProduces a .dendro file with the fit HRG and a .info file with information about the run; these are updated as higher-likelihood dendrograms are found.\n\nIf you pass in an optional partial dendrogra, fitHRG will continue sampling from that saved point."
+Usage = "ruby #{$0} file.pairs [file.dendro]"
 Num_Args = 1
 
 require 'lib/Graph'
@@ -10,7 +10,7 @@ require 'lib/cli'
 verbose = check_flag("-v","--verbose")
 verbose_saved = check_flag("-s", "--saved")
 
-if ARGV.size != Num_Args
+if ARGV.size < Num_Args
   STDERR.puts Description
   STDERR.puts " "
   STDERR.puts "Usage: #{Usage}"
@@ -22,7 +22,12 @@ dendrogram_file = pairs_file.gsub(/\.pairs$/,"-best.dendro")
 info_file = pairs_file.gsub(/\.pairs$/,"-best.info")
 
 graph = Graph.new(pairs_file)
-dendrogram = Dendrogram.new(graph)
+dendrogram = nil
+if ARGV.empty?
+  dendrogram = Dendrogram.new(graph)
+else
+  dendrogram = Dendrogram.new(graph, ARGV.shift)
+end
 
 best_likelihood = dendrogram.sample!
 best_steps = 0

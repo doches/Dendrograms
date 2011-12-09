@@ -158,6 +158,17 @@ class Dendrogram
       end
       # Find root
       @root = @nodes.sort { |b,a| a.children.size <=> b.children.size }[0]
+      
+      # Update MCMC, if possible
+      begin
+        info_file = tree_file.gsub(".dendro",".info")
+        if File.exists?(info_file)
+          status = YAML.load_file(info_file)
+          @mcmc_steps = status[:mcmc]
+        end
+      rescue
+        STDERR.puts "Unable to load MCMC status from .info; carrying on."
+      end
     else
       # Incrementally construct a balanced dendrogram
       remaining = graph.nodes.dup.sort_by { rand }
@@ -229,18 +240,20 @@ class Dendrogram
     fout.close
     
     fout = File.open(info_file, 'w')
-    fout.puts "Likelihood:\t#{@likelihood}\nMCMC Steps:\t#{@mcmc_steps}\n"
+    fout.puts({:likelihood => @likelihood, :mcmc => @mcmc_steps}.to_yaml)
     fout.close
     
     self.to_dot(tree_file.gsub(/\.[^\.]+$/,".dot"))
   end
   
+  def get_dot
+    ["graph {",@nodes.map { |node| node.to_dot(@graph) }.join("\n"),"}"].join("\n")
+  end
+  
   def to_dot(dot_file)
     DendrogramNode.resetLeaves
     fout = File.open(dot_file,'w')
-    fout.puts "graph {"
-    fout.puts @nodes.map { |node| node.to_dot(@graph) }.join("\n")
-    fout.puts "}"
+    fout.puts self.get_dot
     fout.close
   end
 end
