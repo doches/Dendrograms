@@ -20,13 +20,13 @@ IO.foreach(wordmap_f) do |line|
   @wordmap[index] = word
 end
 
-@min = @dendrogram.median_likelihood
+@min = @dendrogram.mean_theta
 
 @clusters = {}
 def identify_subtree_clusters(node)
   return @clusters[@clusters.size.to_s] = [@wordmap[node.to_s]] if node.is_a?(Fixnum)
-  likelihood = Math.exp(node.likelihood(@graph))
-  if likelihood > @min
+  theta = node.connectedness(@graph)[0]
+  if theta > @min
     @clusters[@clusters.size.to_s] = node.children.map { |x| @wordmap[x.to_s] }
   else
     return [identify_subtree_clusters(node.left), identify_subtree_clusters(node.right)]
