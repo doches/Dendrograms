@@ -19,6 +19,8 @@ if ARGV.size != Num_Args
   exit(1)
 end
 
+STDERR.puts "#{samples} samples with a spread of #{spread} \n  -> #{samples*spread} resamples"
+
 dendro_file = ARGV.shift
 graph_file = ARGV.shift
 wordmap_file = ARGV.shift
@@ -27,7 +29,6 @@ IO.foreach(wordmap_file) do |line|
   word,index = *(line.strip.split(/\s+/))
   @wordmap[index] = word
 end
-tree_file = dendro_file.gsub(".dendro",".ctree")
 
 graph = Graph.new(graph_file)
 dendrogram = Dendrogram.new(graph, dendro_file)

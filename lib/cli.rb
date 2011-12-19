@@ -20,3 +20,12 @@ def check_opt(short,long,default)
 	end
 	return value
 end
+
+def usage(description, usage, args)
+  if ARGV.size != args
+    STDERR.puts description
+    STDERR.puts " "
+    STDERR.puts "Usage: #{usage}"
+    exit(1)
+  end
+end

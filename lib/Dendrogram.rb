@@ -25,25 +25,37 @@ class DendrogramNode
     @@leaves = {}
   end
     
-  def DendrogramNode.linkToLeaf(node, leaf)
+  def DendrogramNode.linkToLeaf(node, leaf, wordmap)
     dot = []
     if @@leaves[leaf].nil?
       @@leaves[leaf] = @@leaves.size
-      dot.push "LEAF_#{@@leaves[leaf]} [shape=none, label=\"#{leaf}\"];"
+      label = wordmap.nil? ? leaf : wordmap[leaf.to_s]
+      dot.push "LEAF_#{@@leaves[leaf]} [shape=none, label=\"#{label}\"];"
     end
     dot.push "#{node} -- LEAF_#{@@leaves[leaf]};"
     return dot
   end
   
-  def to_dot(graph)
+  def to_dot(graph, wordmap=nil, likelihood=false)
+    p = nil
     label = "\"\""
-    dot = ["INTERNAL_#{@index} [shape=point,label=#{label}];"]
+    shape = "point"
+    color = "black"
+    if likelihood != false
+      p = self.connectedness(graph)[0]
+      p = (p*100).to_i/100.0
+      shape = "none"
+      label = "#{p}"
+      color = p > likelihood ? "blue" : "red"
+#      color = %w{red orange yellow green blue}[(p/0.2).to_i]
+    end
+    dot = ["INTERNAL_#{@index} [shape=#{shape},label=#{label},fontcolor=#{color},color=red];"]
     
     [@left, @right].each do |child|
       if child.is_a?(DendrogramNode)
         dot.push "INTERNAL_#{@index} -- INTERNAL_#{child.index};"
       else
-        DendrogramNode.linkToLeaf("INTERNAL_#{@index}",child).each { |x| dot.push x }
+        DendrogramNode.linkToLeaf("INTERNAL_#{@index}",child,wordmap).each { |x| dot.push x }
       end
     end
     
@@ -59,13 +71,19 @@ class DendrogramNode
     return @child_cache
   end
   
-  def likelihood(graph)
+  def connectedness(graph)
     left_children = @left.is_a?(DendrogramNode) ? @left.children : [@left]
     right_children = @right.is_a?(DendrogramNode) ? @right.children : [@right]
     
     links = graph.edges_between(left_children, right_children).to_f
     max_links = (left_children.size * right_children.size)
     theta = links / max_links.to_f
+    
+    return [theta, max_links]
+  end
+  
+  def likelihood(graph)
+    theta,max_links = *self.connectedness(graph)
     theta = Epsilon if theta <= 0.0
     theta = 1.0-Epsilon if theta >= 1.0
 #    l = (theta**links) * (1-theta)**(max_links-links)
@@ -126,7 +144,7 @@ end
 
 # Takes a Graph, builds a dendrogram, and provides methods to sample, compute likelihood, and save (with optional info)
 class Dendrogram
-  attr_reader :graph, :likelihood, :mcmc_steps
+  attr_reader :graph, :likelihood, :mcmc_steps, :root
   
   def initialize(graph, tree_file=nil)
     @graph = graph
@@ -193,6 +211,23 @@ class Dendrogram
     @likelihood = @likelihoods.inject(0) { |s,x| s += x }
   end
   
+  # Returns the mean node likelihood
+  def mean_likelihood
+    mean = @likelihoods.map { |x| Math.exp(x) }.inject(0) { |s,x| s += x } / @likelihoods.size.to_f
+    STDERR.puts "Mean likelihood: #{mean}"
+    return mean
+  end
+  
+  def mean_theta
+    @nodes.map { |x| x.connectedness(@graph)[0] }.inject(0) { |s,x| s += x } / @nodes.size.to_f
+  end
+  
+  # Returns the median node connectednes
+  def median_theta
+    v = @nodes.map { |x| x.connectedness(@graph)[0] }
+    return v[v.size/2]
+  end
+  
   def sample!
     mutate = nil
     while true
@@ -246,14 +281,14 @@ class Dendrogram
     self.to_dot(tree_file.gsub(/\.[^\.]+$/,".dot"))
   end
   
-  def get_dot
-    ["graph {",@nodes.map { |node| node.to_dot(@graph) }.join("\n"),"}"].join("\n")
+  def get_dot(wordmap=nil, likelihood=false)
+    ["graph {",@nodes.map { |node| node.to_dot(@graph,wordmap,likelihood) }.join("\n"),"}"].join("\n")
   end
   
-  def to_dot(dot_file)
+  def to_dot(dot_file, wordmap=nil, likelihood=false)
     DendrogramNode.resetLeaves
     fout = File.open(dot_file,'w')
-    fout.puts self.get_dot
+    fout.puts self.get_dot(wordmap,likelihood)
     fout.close
   end
 end
