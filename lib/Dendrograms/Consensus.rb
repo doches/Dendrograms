@@ -1,3 +1,5 @@
+module Dendrograms
+
 class ConsensusNode
   attr_reader :index
   @@index = 0
@@ -43,4 +45,6 @@ class ConsensusNode
       end
     end
   end
+end
+
 end

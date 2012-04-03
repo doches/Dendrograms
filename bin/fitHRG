@@ -1,11 +1,13 @@
-#!/usr/bin/ruby
+#!/usr/bin/env ruby
+
+$LOAD_PATH.unshift File.join(File.dirname(__FILE__),"..","lib")
+
 Description = "Re-implementation, basically, of Clauset's fitHRG tool. Takes a .pairs file and fits a HRG over the graph\nProduces a .dendro file with the fit HRG and a .info file with information about the run; these are updated as higher-likelihood dendrograms are found.\n\nIf you pass in an optional partial dendrogra, fitHRG will continue sampling from that saved point."
 Usage = "ruby #{$0} file.pairs [file.dendro]"
 Num_Args = 1
 
-require 'lib/Graph'
-require 'lib/Dendrogram'
-require 'lib/cli'
+require 'Dendrograms'
+include Dendrograms
 
 verbose = check_flag("-v","--verbose")
 verbose_saved = check_flag("-s", "--saved")

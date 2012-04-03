@@ -1,3 +1,5 @@
+module Dendrograms
+
 # Loads a graph from a .pairs file, and computes the number of edges between sets of nodes
 
 class Graph
@@ -33,4 +35,6 @@ class Graph
   def edge_key(a,b)
     "#{a}_#{b}".to_sym
   end
+end
+
 end

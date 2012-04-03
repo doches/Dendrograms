@@ -1,3 +1,5 @@
+module Dendrograms
+
 # Represents a single node in a dendrogram. Provides methods for transformation, and for computing likelihood
 class DendrogramNode
   attr_accessor :index, :left, :right
@@ -37,19 +39,7 @@ class DendrogramNode
   end
   
   def to_dot(graph, wordmap=nil, likelihood=false)
-    p = nil
-    label = "\"\""
-    shape = "point"
-    color = "black"
-    if likelihood != false
-      p = self.connectedness(graph)[0]
-      p = (p*100).to_i/100.0
-      shape = "none"
-      label = "#{p}"
-      color = p > likelihood ? "blue" : "red"
-#      color = %w{red orange yellow green blue}[(p/0.2).to_i]
-    end
-    dot = ["INTERNAL_#{@index} [shape=#{shape},label=#{label},fontcolor=#{color},color=red];"]
+    dot = self.dot_node(graph,wordmap, likelihood)
     
     [@left, @right].each do |child|
       if child.is_a?(DendrogramNode)
@@ -59,7 +49,53 @@ class DendrogramNode
       end
     end
     
-    "\t#{dot.join("\n\t")}"
+    return "\t#{dot.join("\n\t")}"
+  end
+  
+  def dot_node(graph, wordmap=nil, likelihood=false, decorate=true)
+    label = "\"\""
+    shape = "point"
+    color = "black"
+    if likelihood != false
+      theta = self.connectedness(graph)[0]
+      theta = (theta*100).to_i/100.0
+      shape = "none"
+      label = "\"#{theta}\""
+      color = theta > likelihood ? "blue" : "red"
+    end
+    if decorate
+      return ["INTERNAL#{@index} [shape=#{shape},label=#{label},fontcolor=#{color},color=red];"]
+    else
+      return ["INTERNAL#{@index} [shape=point, label=\"\"];"]
+    end
+  end
+  
+  def hierarchy_dot(graph, wordmap, likelihood)
+    dot = self.dot_node(graph,wordmap,likelihood,false)
+    theta = self.connectedness(graph)[0]
+    
+    if theta < likelihood
+      if @left.is_a?(DendrogramNode)
+        dot.push "INTERNAL#{@index} -- INTERNAL#{@left.index};"
+        dot.push @left.hierarchy_dot(graph,wordmap,likelihood)
+      else  
+        dot.push "INTERNAL#{@index} -- LEAF#{@left};"
+        dot.push "LEAF#{@left} [shape=none, label=\"#{wordmap[@left.to_s]}\"];"
+      end
+      if @right.is_a?(DendrogramNode)
+        dot.push "INTERNAL#{@index} -- INTERNAL#{@right.index};"
+        dot.push @right.hierarchy_dot(graph,wordmap,likelihood)
+      else  
+        dot.push "INTERNAL#{@index} -- LEAF#{@right};"
+        dot.push "LEAF#{@right} [shape=none, label=\"#{wordmap[@right.to_s]}\"];"
+      end
+    else
+      dot.push self.children.map { |x| ["INTERNAL#{@index} -- LEAF#{x};","LEAF#{x} [shape=none, label=\"#{wordmap[x.to_s]}\"];"] }
+#      dot.push self.children.map { |x| "LEAF#{x} [shape=none, label=\"#{wordmap[x.to_s]}\"];" }
+#      dot.push self.children.map { |x| "INTERNAL#{@index} -- LEAF#{x};" }
+    end
+    
+    dot.flatten
   end
   
   def children(force = false)
@@ -282,13 +318,20 @@ class Dendrogram
   end
   
   def get_dot(wordmap=nil, likelihood=false)
+    DendrogramNode.resetLeaves
     ["graph {",@nodes.map { |node| node.to_dot(@graph,wordmap,likelihood) }.join("\n"),"}"].join("\n")
   end
   
-  def to_dot(dot_file, wordmap=nil, likelihood=false)
+  def get_hierarchy_dot(wordmap=nil, likelihood=false)
     DendrogramNode.resetLeaves
+    ["graph {", @root.hierarchy_dot(@graph, wordmap, likelihood).map { |x| "\t#{x}" }.join("\n"), "}"].join("\n")
+  end
+  
+  def to_dot(dot_file, wordmap=nil, likelihood=false)
     fout = File.open(dot_file,'w')
     fout.puts self.get_dot(wordmap,likelihood)
     fout.close
   end
+end
+
 end

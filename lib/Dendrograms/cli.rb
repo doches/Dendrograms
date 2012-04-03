@@ -1,3 +1,5 @@
+module Dendrograms
+
 def check_flag(short,long)
   present = false
   [short,long].each do |opt|
@@ -28,4 +30,6 @@ def usage(description, usage, args)
     STDERR.puts "Usage: #{usage}"
     exit(1)
   end
+end
+
 end
